@@ -1,0 +1,1614 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ストラッシュ 顧客獲得戦略ダッシュボード</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+        }
+        .chart-container {
+            position: relative;
+            height: 40vh; /* Base height for charts */
+            width: 100%;
+            max-height: 400px; /* Max height on larger screens */
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px; /* Adjust height for medium screens */
+            }
+        }
+        @media (max-width: 640px) {
+            .chart-container {
+                height: 30vh; /* Smaller height on mobile */
+                max-height: 250px;
+            }
+        }
+
+        .tab-active {
+            border-color: #0d9488;
+            color: #0d9488;
+            background-color: #f0fdfa;
+        }
+        .tab-inactive {
+            border-color: transparent;
+            color: #52525b;
+        }
+        .nav-active {
+            color: #0d9488;
+            border-bottom-width: 2px;
+            border-color: #0d9488;
+        }
+        .nav-inactive {
+            color: #52525b;
+            border-bottom-width: 2px;
+            border-color: transparent;
+        }
+        /* Accordion specific styles */
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .accordion-content.is-expanded {
+            max-height: 9999px; /* Large enough to accommodate content */
+        }
+        /* Custom styles for enhanced design */
+        .card {
+            background-color: #fff;
+            padding: 1.5rem;
+            border-radius: 1rem; /* More rounded */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Stronger shadow */
+            border: 1px solid #e5e7eb; /* Subtle border */
+        }
+        .gradient-bg-header {
+            background: linear-gradient(to right, #0d9488, #10b981); /* Teal to Emerald gradient */
+            color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem; /* Rounded corners */
+            box-shadow: 0 6px 16px rgba(13, 148, 136, 0.2); /* Shadow for prominence */
+        }
+        .btn-primary {
+            background-color: #0d9488;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary:hover {
+            background-color: #10b981;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            transform: translateY(-1px);
+        }
+        .btn-secondary {
+            background-color: #e5e7eb;
+            color: #4b5563;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: all 0.2s ease-in-out;
+            border: 1px solid #d1d5db;
+        }
+        .btn-secondary:hover {
+            background-color: #d1d5db;
+            transform: translateY(-1px);
+        }
+        .highlight-text {
+            color: #0d9488; /* Teal */
+            font-weight: 600;
+        }
+        .info-box {
+            background-color: #f0fdfa; /* Light teal */
+            border-left: 4px solid #0d9488; /* Stronger teal border */
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+        }
+        /* Positioning map specific styles */
+        .positioning-map {
+            position: relative;
+            width: 100%;
+            padding-bottom: 75%; /* 4:3 Aspect Ratio */
+            background-color: #f8fafc; /* Slate-50 */
+            border: 1px solid #cbd5e1; /* Slate-300 */
+            border-radius: 0.75rem;
+            overflow: hidden;
+        }
+        .map-axis {
+            position: absolute;
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+        .map-x-axis-label-left { left: 5%; bottom: 2%; }
+        .map-x-axis-label-right { right: 5%; bottom: 2%; text-align: right; }
+        .map-y-axis-label-top { top: 2%; left: 2%; transform: rotate(90deg) translateY(-50%); transform-origin: top left; }
+        .map-y-axis-label-bottom { bottom: 2%; left: 2%; transform: rotate(90deg) translateY(50%); transform-origin: bottom left; }
+        .map-center-line-x {
+            position: absolute;
+            width: 100%;
+            height: 1px;
+            background-color: #cbd5e1;
+            top: 50%;
+            left: 0;
+        }
+        .map-center-line-y {
+            position: absolute;
+            height: 100%;
+            width: 1px;
+            background-color: #cbd5e1;
+            left: 50%;
+            top: 0;
+        }
+        .map-point {
+            position: absolute;
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transform: translate(-50%, -50%); /* Center the point on its coordinates */
+            cursor: help;
+        }
+        .map-point-label {
+            position: absolute;
+            font-size: 0.7rem;
+            white-space: nowrap;
+            color: #475569; /* Slate-700 */
+            pointer-events: none;
+            top: 100%; /* Position below the point */
+            left: 50%;
+            transform: translateX(-50%);
+            margin-top: 0.25rem;
+        }
+        .map-point[data-label]:hover::before {
+            content: attr(data-label);
+            position: absolute;
+            top: -1.8rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: #fff;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-size: 0.7rem;
+            white-space: nowrap;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-800">
+
+    <div class="min-h-screen">
+        <header class="bg-white shadow-md sticky top-0 z-10">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <div class="flex justify-between items-center">
+                    <h1 class="text-2xl sm:text-3xl font-extrabold text-stone-900">ストラッシュ 顧客獲得戦略</h1>
+                    <div class="hidden sm:block">
+                        <span class="text-sm font-medium text-stone-500">Day150件達成へのロードマップ</span>
+                    </div>
+                </div>
+                <nav id="main-nav" class="flex border-b-2 border-stone-100 mt-4">
+                    <button data-view="dashboard" class="nav-btn nav-active py-3 px-4 text-sm font-semibold hover:text-teal-600">ダッシュボード</button>
+                    <button data-view="monthly-plan" class="nav-btn nav-inactive py-3 px-4 text-sm font-semibold hover:text-teal-600">月次アクションプラン</button>
+                    <button data-view="market-analysis" class="nav-btn nav-inactive py-3 px-4 text-sm font-semibold hover:text-teal-600">市場分析</button>
+                </nav>
+            </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            
+            <section id="dashboard" class="view-section space-y-10">
+                <div class="gradient-bg-header p-6 rounded-xl">
+                    <h2 class="text-2xl sm:text-3xl font-extrabold mb-2 text-white">戦略ダッシュボード</h2>
+                    <p class="text-stone-100 text-sm">半年後の安定的な顧客獲得Day150件達成に向けた主要KPIと戦略の全体像です。現状と目標を比較し、進捗を確認できます。</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="card">
+                        <h3 class="text-sm font-semibold text-stone-500">日次顧客獲得目標</h3>
+                        <p class="text-4xl font-bold text-teal-600 mt-2">150<span class="text-lg ml-1">件</span></p>
+                        <p class="text-xs text-stone-500 mt-2">現状: 50件/日</p>
+                    </div>
+                    <div class="card">
+                        <h3 class="text-sm font-semibold text-stone-500">目標CPA</h3>
+                        <p class="text-4xl font-bold text-teal-600 mt-2">¥8,933</p>
+                        <p class="text-xs text-stone-500 mt-2">現状: 約¥20,000</p>
+                    </div>
+                    <div class="card">
+                        <h3 class="text-sm font-semibold text-stone-500">目標カウンセリング成約率</h3>
+                        <p class="text-4xl font-bold text-teal-600 mt-2">40<span class="text-lg ml-1">%</span></p>
+                        <p class="text-xs text-stone-500 mt-2">現状: 30%</p>
+                    </div>
+                    <div class="card">
+                        <h3 class="text-sm font-semibold text-stone-500">目標スタッフ数</h3>
+                        <p class="text-4xl font-bold text-teal-600 mt-2">~780<span class="text-lg ml-1">名</span></p>
+                        <p class="text-xs text-stone-500 mt-2">現状: 520名 → 約50%増</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 class="text-xl font-bold text-stone-800">日次顧客獲得 推移目標</h3>
+                    <p class="text-sm text-stone-500 mb-4">6ヶ月でDay50件からDay150件へ引き上げるための月次目標推移です。各月のアクションを通じて、この目標達成を目指します。</p>
+                    <div class="chart-container">
+                        <canvas id="acquisitionChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 戦略的ターゲット: 35歳以上層 -->
+                <div class="card">
+                    <button class="accordion-toggle w-full flex justify-between items-center text-left p-4 -m-4 bg-transparent hover:bg-stone-50 focus:outline-none rounded-lg" data-target-age="over35">
+                        <div class="flex items-center gap-4">
+                            <span class="text-3xl">🎯</span>
+                            <div>
+                                <h3 class="text-lg font-bold text-stone-800">戦略的ターゲット: 35歳以上層</h3>
+                                <p class="text-sm text-stone-600">LTVの高さが投資を正当化します。</p>
+                            </div>
+                        </div>
+                        <p class="text-2xl font-bold text-teal-600">期待ROAS: 9.03<span class="text-base ml-1">倍</span></p>
+                        <svg class="accordion-icon w-6 h-6 text-stone-500 transition-transform transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div class="accordion-content mt-4 border-t border-stone-200 pt-4">
+                        <h4 class="text-xl font-bold text-stone-800 mb-4">35歳以上層への新規顧客獲得戦略</h4>
+                        
+                        <div class="info-box bg-teal-50 border-teal-200">
+                            <h5 class="font-bold text-teal-800">ROAS懸念への数値的根拠：LTVの高さが投資を正当化する</h5>
+                            <p class="text-sm text-teal-700 mt-1">35歳以上のお客様は、CPAが一時的に上がったとしても、LTV（顧客生涯価値）が大幅に高くなることで、結果的に高いROASを実現できる可能性が極めて高いです。LTVの高さが広告投資を十分に正当化します。</p>
+                            <div class="overflow-x-auto mt-4">
+                                <table class="w-full text-sm text-left text-stone-600 rounded-lg overflow-hidden border border-stone-200">
+                                    <thead class="text-xs text-stone-700 uppercase bg-stone-100">
+                                        <tr>
+                                            <th scope="col" class="px-3 py-2">項目</th>
+                                            <th scope="col" class="px-3 py-2">現状平均値 (仮定)</th>
+                                            <th scope="col" class="px-3 py-2">35歳以上層 (仮説)</th>
+                                            <th scope="col" class="px-3 py-2">根拠/理由</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr class="bg-white border-b border-stone-200">
+                                            <th scope="row" class="px-3 py-2 font-medium text-stone-900 whitespace-nowrap">CPA (顧客獲得単価)</th>
+                                            <td class="px-3 py-2">約 ¥20,000</td>
+                                            <td class="px-3 py-2"><span class="highlight-text">約 ¥25,000</span> (1.25倍)</td>
+                                            <td class="px-3 py-2">ターゲティングの絞り込み、質の高いコンテンツ作成による初期費用増</td>
+                                        </tr>
+                                        <tr class="bg-white border-b border-stone-200">
+                                            <th scope="row" class="px-3 py-2 font-medium text-stone-900 whitespace-nowrap">カウンセリング成約率</th>
+                                            <td class="px-3 py-2">30%</td>
+                                            <td class="px-3 py-2">40%</td>
+                                            <td class="px-3 py-2">ニーズが明確、価値重視の傾向、高額プランへの移行意欲</td>
+                                        </tr>
+                                        <tr class="bg-white border-b border-stone-200">
+                                            <th scope="row" class="px-3 py-2 font-medium text-stone-900 whitespace-nowrap">平均契約単価 (ACV)</th>
+                                            <td class="px-3 py-2">¥125,400</td>
+                                            <td class="px-3 py-2"><span class="highlight-text">¥188,100</span> (1.5倍)</td>
+                                            <td class="px-3 py-2">経済的安定性から高回数・高額プラン選択の傾向（例: 全身脱毛プラチナコース等）</td>
+                                        </tr>
+                                        <tr class="bg-white border-b border-stone-200">
+                                            <th scope="row" class="px-3 py-2 font-medium text-stone-900 whitespace-nowrap">LTV (顧客生涯価値)</th>
+                                            <td class="px-3 py-2">約 ¥125,400</td>
+                                            <td class="px-3 py-2"><span class="highlight-text">約 ¥225,720</span> (ACVの1.2倍)</td>
+                                            <td class="px-3 py-2">追加購入・物販（HADATERASU等）増加、高いリテンション、紹介率</td>
+                                        </tr>
+                                        <tr class="bg-white">
+                                            <th scope="row" class="px-3 py-2 font-bold text-stone-900 whitespace-nowrap">ROAS (広告費用対効果)</th>
+                                            <td class="px-3 py-2 font-bold">6.27倍</td>
+                                            <td class="px-3 py-2 font-bold text-teal-600"><span class="highlight-text">9.03倍</span></td>
+                                            <td class="px-3 py-2 font-bold">LTV向上率がCPA上昇率を上回るため、高い投資対効果が期待できる</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="text-sm text-teal-700 mt-4">**【結論】**たとえ35歳以上のお客様を獲得するためのCPAが現状の**¥20,000から¥25,000**に上昇したとしても、LTVが**¥125,400から¥225,720**に向上することで、**ROASは6.27倍から9.03倍へと改善**する見込みです。これは、35歳以上のお客様への広告投資が十分に回収可能であり、むしろ**より高いリターンが期待できる**ことを示しています。</p>
+                        </div>
+
+                        <h5 class="text-lg font-bold text-stone-800 mt-6">35歳以上層の特性と訴求の方向性</h5>
+                        <div class="space-y-4 text-sm text-stone-600">
+                            <div>
+                                <p class="font-semibold text-stone-700">1. 経済的安定性:</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>特性: 比較的高い可処分所得を持ち、価格だけでなく品質や長期的な価値を重視する傾向。</li>
+                                    <li>訴求: 「確かな効果と満足度への投資」「時間をかける価値のある自分へのご褒美」といった、**価格の安さよりも価値に見合った投資**であることを強調します。</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-stone-700">2. 身体的変化への意識:</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>特性: ホルモンバランスの変化により、毛質が変化したり、自己処理による肌トラブル（乾燥、色素沈着）が増えたりする傾向。痛みに敏感な方も増加。</li>
+                                    <li>訴求: ストラッシュのSHR脱毛が「痛みが少ない（**SWOT分析：強み**）」「肌に優しい」「産毛や金髪にも対応可能」であることを強調。美肌効果を組み合わせ、「脱毛＋肌質改善」のソリューションとして提案します（**4P分析：Product**）。</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-stone-700">3. 時間的制約と効率性:</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>特性: 仕事や家庭で忙しく、自己処理にかける時間がない、または面倒だと感じる方が多い。</li>
+                                    <li>訴求: 「短時間施術（SHR脱毛のメリット）」「効率的な脱毛完了（最短期間での効果実感）」「予約の取りやすさ」をアピールし、「忙しい大人の女性のための効率的な美容投資」として提示します。</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-stone-700">4. 信頼性と情報の質への重視:</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>特性: 衝動的な購買よりも、納得感のある情報や実績, 信頼できる口コミを重視。</li>
+                                    <li>訴求: 施術の安全性、スタッフの専門性、お客様の具体的な変化（ビフォーアフター）、長期的な満足度に焦点を当てたコンテンツを提供します。</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <h5 class="text-lg font-bold text-stone-800 mt-6">35歳以上のお客様への具体的な広告訴求とチャネル戦略</h5>
+                        <div class="space-y-4 text-sm text-stone-600">
+                            <div>
+                                <p class="font-semibold text-stone-700">1. Meta広告（Facebook/Instagram）:</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>訴求: 「大人の肌に優しい脱毛」「自己処理の肌荒れから解放」「年齢を感じさせない美肌へ」といった具体的なメリットを提示。</li>
+                                    <li>コンテンツ: 落ち着いた雰囲気のサロンの様子、40代・50代のモデルを起用したビフォーアフター、専門家（スタッフ）による肌質・毛質への丁寧な説明動画。</li>
+                                    <li>ターゲティング: 35歳以上の女性に絞り込み、美容、健康、旅行、ライフスタイル関連の興味関心でセグメントします。</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-stone-700">2. YouTube広告:</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>訴求: 「35歳からの脱毛：知っておきたい肌への優しさ」「デリケートゾーンの悩み解決」「プロが教える痛くない脱毛の秘密」など、**教育的かつ問題解決型のコンテンツ**で信頼を獲得。</li>
+                                    <li>コンテンツ: 医師監修の解説動画、お客様インタビュー（顔出し・声出しで信頼性を高める）、施術の流れを丁寧に解説する動画。</li>
+                                    <li>形式: TrueViewインストリーム広告（スキップされない尺でじっくり訴求）、バンパー広告（短い尺で繰り返しブランドメッセージを刷り込む）。</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-stone-700">3. Google検索広告 / ディスプレイ広告:</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>訴求: 「30代 脱毛 痛くない」「VIO脱毛 40代」「肌に優しい脱毛サロン」といった具体的な検索キーワードで顕在層を獲得。</li>
+                                    <li>コンテンツ: ディスプレイ広告では、落ち着いたトーンで信頼感を伝えるクリエイティブ。リターゲティング広告で一度サイトを訪れた35歳以上層に再アプローチ。</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-stone-700">4. コンテンツマーケティング（ブログ、オウンドメディア）:</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>訴求: 「35歳からの肌の変化と脱毛」「ホルモンバランスと毛質」「痛くない脱毛の選び方」といった、深い情報ニーズに応える記事を提供。</li>
+                                    <li>コンテンツ: 専門性の高い記事、お客様の声の詳細版、よくある質問への丁寧な回答。</li>
+                                    <li>効果: SEO対策にも繋がり、オーガニック検索からの質の高いリード獲得に貢献します。</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-stone-700">5. 信頼性の高いメディアとのタイアップ/インフルエンサーマーケティング:</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>訴求: 美容系雑誌（オンライン版含む）や、ライフスタイル系のメディア、落ち着いた雰囲気の美容系インフルエンサーとのタイアップ。</li>
+                                    <li>コンテンツ: 記事広告、体験レポート、ライブ配信でのQ&A。</li>
+                                    <li>選定: ターゲット層に支持されており、信頼性が高いと認識されているインフルエンサーやメディアを選定します。</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- 35歳以上層向け PEST分析 -->
+                        <h5 class="text-lg font-bold text-stone-800 mt-6">PEST分析 (35歳以上層向け)</h5>
+                        <div class="space-y-4 text-sm text-stone-600">
+                            <div>
+                                <p class="font-semibold text-stone-700">Political (政治的要因):</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>消費者保護法の強化は、高額な美容サービス契約において、より詳細な情報開示とクーリングオフ制度の明確化を求めます。35歳以上層は契約内容をより精査する傾向があるため、透明性が重要です。</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-stone-700">Economic (経済的要因):</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>35歳以上は一般的に可処分所得が高く、美容への投資意欲も高い傾向があります。ただし、景気変動の影響を受けやすく、高額なサービスにはより慎重になる可能性もあります。LTVの高さがCPA増を許容する根拠となります。</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-stone-700">Social (社会的・文化的要因):</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>アンチエイジングやウェルネスへの関心が高まり、肌質改善を含めた美容意識がより高まります。男性の美容意識向上もこの年代で顕著であり、将来的なメンズ脱毛市場の拡大機会にも繋がります。</li>
+                                    <li>SNSでの情報収集は若年層ほどではないが、信頼できるインフルエンサーやメディアからの情報は重視します。</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-stone-700">Technological (技術的要因):</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>痛みの少ない脱毛技術（SHR）は、痛みに敏感なこの層にとって魅力的です。自宅で手軽に使える高性能な家庭用脱毛器の進化は代替品の脅威となりますが、サロンでのプロの技術と肌への優しさで差別化できます。</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- 35歳以上層向け 3C分析 -->
+                        <h5 class="text-lg font-bold text-stone-800 mt-6">3C分析 (35歳以上層向け)</h5>
+                        <div class="space-y-4 text-sm text-stone-600">
+                            <div>
+                                <p class="font-semibold text-stone-700">顧客 (Customer):</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>**ニーズ:** 痛くない脱毛、肌質改善、効率的な施術、信頼性、長期的な効果、予約の取りやすさ。</li>
+                                    <li>**POD (差別化点):** ストラッシュのSHR脱毛による「痛みの少なさ」と「肌への優しさ」、美肌ケアの組み合わせ。忙しいライフスタイルに合わせた「短時間施術」。</li>
+                                    <li>**POP (同等点):** 全身脱毛プラン、多店舗展開、オンライン予約。</li>
+                                    <li>**POF (不足点):** 「永久脱毛ではない」という認識の解消、高額プランに対する初期の価格ハードル、電話対応や予約の取りにくさ。</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-stone-700">競合 (Competitor):</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>**エステ競合:** ミュゼ（信頼性、キャンペーン）、ラココ（価格競争力）、TBC（電気脱毛併用）。</li>
+                                    <li>**医療脱毛競合:** エミナル、湘南美容（低価格での永久脱毛訴求）。35歳以上層は痛みを許容してでも「確実な効果」を求める場合があり、強力な競合。</li>
+                                    <li>**代替品:** 高機能家庭用脱毛器（利便性、初期投資のみ）。</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-stone-700">自社 (Company) - ストラッシュ:</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>**強み:** 痛みの少ないSHR脱毛、カウンセリング時の肌診断・無料体験、デジタルマーケティング実績。</li>
+                                    <li>**弱み:** 医療脱毛との「永久性」の認識差、一部競合と比較した総額価格、予約の取りにくさ、電話対応の限界。</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- 35歳以上層向け SWOT分析 -->
+                        <h5 class="text-lg font-bold text-stone-800 mt-6">SWOT分析 (35歳以上層向け)</h5>
+                        <div class="space-y-4">
+                            <div class="border border-stone-200 rounded-lg p-4">
+                                <h4 class="font-semibold text-stone-700 mb-2">強み (Strengths)</h4>
+                                <div class="text-sm text-stone-600">
+                                    <ul class="list-disc pl-5 space-y-1 text-xs">
+                                        <li>痛みの少ないSHR脱毛が35歳以上層の「痛みへの敏感さ」に合致。</li>
+                                        <li>肌への優しさ、美肌効果への期待。</li>
+                                        <li>デジタル広告のノウハウを活用し、信頼性の高い情報発信が可能。</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="border border-stone-200 rounded-lg p-4">
+                                <h4 class="font-semibold text-stone-700 mb-2">弱み (Weaknesses)</h4>
+                                <div class="text-sm text-stone-600">
+                                    <ul class="list-disc pl-5 space-y-1 text-xs">
+                                        <li>医療脱毛と比較した「永久脱毛」でないという認識。</li>
+                                        <li>高額な総額プランへの初期抵抗。</li>
+                                        <li>予約の取りにくさ、電話対応の質がこの層の期待を損なう可能性。</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="border border-stone-200 rounded-lg p-4">
+                                <h4 class="font-semibold text-stone-700 mb-2">機会 (Opportunities)</h4>
+                                <div class="text-sm text-stone-600">
+                                    <ul class="list-disc pl-5 space-y-1 text-xs">
+                                        <li>35歳以上層の美容意識・投資意欲の高さ。</li>
+                                        <li>エイジングケアや肌質改善ニーズとの融合。</li>
+                                        <li>メンズ脱毛市場の拡大（同年代の夫婦・パートナー層へのアプローチ）。</li>
+                                        <li>信頼できるメディアや専門家による情報発信の重要性。</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="border border-stone-200 rounded-lg p-4">
+                                <h4 class="font-semibold text-stone-700 mb-2">脅威 (Threats)</h4>
+                                <div class="text-sm text-stone-600">
+                                    <ul class="list-disc pl-5 space-y-1 text-xs">
+                                        <li>医療脱毛の低価格化と「永久脱毛」の訴求。</li>
+                                        <li>高機能家庭用脱毛器の普及による自宅ケアの代替。</li>
+                                        <li>競合他社も35歳以上層をターゲットにする可能性。</li>
+                                        <li>長期契約への顧客不安。</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <h4 class="text-lg font-bold text-stone-800 mt-6">SWOTクロス分析：戦略的示唆 (35歳以上層向け)</h4>
+                            <div class="info-box">
+                                <h5 class="font-bold text-teal-800">S × O (攻めの戦略)</h5>
+                                <p class="text-sm text-teal-700 mt-1">痛みの少ないSHR脱毛（強み）と35歳以上層の美容意識の高さ（機会）を組み合わせ、**「肌への優しさと確かな美肌効果を両立した大人のための脱毛」**として訴求します。YouTubeや美容系オウンドメディアで、専門家による「肌質改善と脱毛の両立」をテーマとした深掘りコンテンツを配信し、**高LTV顧客の獲得効率を向上（ROAS 9.03倍目標）**。</p>
+                            </div>
+                            <div class="info-box">
+                                <h5 class="font-bold text-teal-800">S × T (差別化戦略)</h5>
+                                <p class="text-sm text-teal-700 mt-1">痛みの少ないSHR脱毛（強み）を、医療脱毛の「痛みが強い」イメージや高機能家庭用脱毛器の「自己処理の負担」（脅威）に対する明確な優位点として強調します。カウンセリング時に「エステとしてのリラックス体験」と「痛みへの徹底的な配慮」を提示し、**価格以上の「快適さ」と「安心感」**で差別化を図ります。</p>
+                            </div>
+                            <div class="info-box">
+                                <h5 class="font-bold text-teal-800">W × O (改善戦略)</h5>
+                                <p class="text-sm text-teal-700 mt-1">「予約の取りにくさ」（弱み）を解消するため、35歳以上層が重視する「効率性」を機会として捉え、オンライン予約システムを強化し、**希望日時での予約可能率を90%以上**に引き上げます。また、電話対応の平均応答時間を**10秒以内**に短縮することで、顧客のストレスを軽減し、高LTV顧客の満足度を最大化します。</p>
+                            </div>
+                            <div class="info-box">
+                                <h5 class="font-bold text-teal-800">W × T (回避/防御戦略)</h5>
+                                <p class="text-sm text-teal-700 mt-1">「永久脱毛ではない」という認識（弱み）に対し、医療脱毛クリニック（脅威）との違いを明確にしつつ、ストラッシュのSHR脱毛が「自己処理が不要になるレベル」の効果を提供できる点を強調します。キャンペーン価格だけでなく、**長期的な総額で見た際のコストパフォーマンス**も丁寧に説明し、顧客の期待値管理を徹底します。</p>
+                            </div>
+                        </div>
+
+                        <!-- 35歳以上層向け STP分析 -->
+                        <h5 class="text-lg font-bold text-stone-800 mt-6">STP分析 (35歳以上層向け)</h5>
+                        <div class="space-y-4 text-sm text-stone-600">
+                            <div>
+                                <p class="font-semibold text-stone-700">Segmentation (市場細分化):</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>**年齢層:** 35歳以上の女性（特に40代〜50代前半）。</li>
+                                    <li>**ニーズ:** 痛くない脱毛、肌質改善、効率性、信頼性、高LTVポテンシャル。</li>
+                                    <li>**行動:** 口コミやメディア情報を重視、衝動買いより慎重な検討。</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-stone-700">Targeting (ターゲット選定):</p>
+                                <p>ストラッシュは、**「痛みに敏感で、肌への優しさと美肌効果を重視し、忙しい中でも効率的な美容投資を求める35歳以上の女性」**を新たな戦略的ターゲットとして明確に設定します。</p>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-stone-700">Positioning (ポジショニング):</p>
+                                <p>この層に対してストラッシュは、**「大人の肌とライフスタイルに寄り添う、痛みなく美肌を育む脱毛サロン」**としてポジショニングします。単なる脱毛サービスではなく、**「年齢による肌悩みを解決し、自信を高めるためのパートナー」**としての価値を提供します。</p>
+                            </div>
+                        </div>
+
+                        <!-- 35歳以上層向け 4P分析 -->
+                        <h5 class="text-lg font-bold text-stone-800 mt-6">4P分析 (35歳以上層向け) - 競合比較</h5>
+                        <div class="space-y-4 text-sm text-stone-600">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm text-left text-stone-600 rounded-lg overflow-hidden border border-stone-200">
+                                    <thead class="text-xs text-stone-700 uppercase bg-stone-100">
+                                        <tr>
+                                            <th scope="col" class="px-3 py-2">項目</th>
+                                            <th scope="col" class="px-3 py-2">ストラッシュのアプローチ (ターゲット: 35歳以上層)</th>
+                                            <th scope="col" class="px-3 py-2">ミュゼプラチナム (エステ競合例)</th>
+                                            <th scope="col" class="px-3 py-2">エミナルクリニック (医療脱毛競合例)</th>
+                                            <th scope="col" class="px-3 py-2">ストラッシュの差別化ポイント</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr class="bg-white border-b border-stone-200">
+                                            <th scope="row" class="px-3 py-2 font-medium text-stone-900 whitespace-nowrap">Product<br>(製品・サービス)</th>
+                                            <td class="px-3 py-2">
+                                                **SHR脱毛**による「痛みの少なさ」「肌への優しさ」（<span class="highlight-text">痛みがほぼない</span>、<span class="highlight-text">施術時間最短60分</span>）、そして「美肌効果」（<span class="highlight-text">脱毛ジェルに21種類の美容成分配合</span>）を前面に。
+                                                産毛や金髪にも対応可能で、**脱毛とエイジングケアの融合**を提案。
+                                                忙しい大人の女性向けの「短時間施術」。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                **S.S.C.脱毛**による肌への優しさ、美容脱毛の効果。
+                                                美肌効果を伴うジェル使用。部分脱毛のオプションが豊富。
+                                                VIOや顔などのオプションは別料金。
+                                                <span class="highlight-text">施術時間は全身で約120分</span>。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                **ダイオードレーザー脱毛**による高い永久脱毛効果。
+                                                比較的短期間での脱毛完了を目指す。
+                                                痛みが伴う場合があり（<span class="highlight-text">痛みの感じ方には個人差あり</span>）、肌トラブル時の対応は医療機関として対応。
+                                                <span class="highlight-text">施術時間は全身で約60〜90分</span>。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <span class="highlight-text">エステ脱毛の「肌への優しさ」と「快適性」を極限まで高め、医療脱毛が苦手とする「産毛・金髪」にも対応。さらに「美容成分配合ジェル」による美肌・エイジングケアと統合した総合的な美容ソリューションを提供。</span>
+                                            </td>
+                                        </tr>
+                                        <tr class="bg-white border-b border-stone-200">
+                                            <th scope="row" class="px-3 py-2 font-medium text-stone-900 whitespace-nowrap">Price<br>(価格)</th>
+                                            <td class="px-3 py-2">
+                                                初回限定キャンペーン（例: <span class="highlight-text">月額4,400円〜</span>）、高回数・高額プランでのLTVメリットを明確に提示。
+                                                全身脱毛12回コース総額は<span class="highlight-text">約220,000円</span>（回数パック、都度払いなど柔軟に対応）。
+                                                「価値に見合う投資」としての価格訴求。
+                                                明確な総額提示と返金保証で安心感を提供。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                「<span class="highlight-text">100円脱毛</span>」などの破格のキャンペーンで新規顧客を獲得。
+                                                全身脱毛コースは<span class="highlight-text">100,000円〜200,000円台</span>が中心。回数プランが豊富。
+                                                割引の種類が豊富。部分脱毛から全身脱毛へのステップアップを促す。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                全身脱毛5回プランなど、医療脱毛としては低価格帯のプランを設定（例: <span class="highlight-text">全身脱毛5回 49,500円〜</span>）。
+                                                麻酔代（<span class="highlight-text">1部位3,300円〜</span>）やシェービング代が別途発生する場合がある。
+                                                月額制もあるが、分割払いの形が多い。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <span class="highlight-text">短期的な価格競争ではなく、35歳以上層が重視する「長期的な肌の美しさ」と「投資対効果」を軸に、高LTV顧客に選ばれる価格戦略。初期の価格ハードルを越える「体験価値」を重視。</span>
+                                            </td>
+                                        </tr>
+                                        <tr class="bg-white border-b border-stone-200">
+                                            <th scope="row" class="px-3 py-2 font-medium text-stone-900 whitespace-nowrap">Place<br>(流通・店舗)</th>
+                                            <td class="px-3 py-2">
+                                                **予約の取りやすさ**を最優先（<span class="highlight-text">オンライン予約システム強化、店舗稼働率最適化、予約枠増設</span>）。
+                                                「清潔感」「プライバシー」「リラックスできる空間」を提供し、来店体験を重視。
+                                                駅チカなどアクセスが良い立地を再アピール。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                全国に多数の店舗を展開。主要駅や商業施設内に立地。
+                                                WEBやアプリからの予約が可能。店舗間の移動も可能。
+                                                <span class="highlight-text">人気店では予約の取りにくさが課題になることも。</span>
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                都市部や主要駅周辺に集中。完全個室制。
+                                                WEBからの予約が主。
+                                                医療行為のため、エステサロンとは異なる雰囲気。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <span class="highlight-text">競合の課題である「予約の取りにくさ」を解消し、35歳以上層が求める「効率性」と「プライバシー」を両立した快適なサロン体験を提供。特に、時間を無駄にしないスムーズな予約と施術を強調。</span>
+                                            </td>
+                                        </tr>
+                                        <tr class="bg-white">
+                                            <th scope="row" class="px-3 py-2 font-medium text-stone-900 whitespace-nowrap">Promotion<br>(プロモーション)</th>
+                                            <td class="px-3 py-2">
+                                                Meta広告（<span class="highlight-text">40代・50代モデル起用、ライフスタイル訴求</span>）、YouTube（<span class="highlight-text">専門家解説、お客様インタビューで信頼性構築、ビフォーアフター動画</span>）。
+                                                Google検索広告で「30代 脱毛 痛くない」「VIO脱毛 40代」「肌に優しい脱毛サロン」など顕在ニーズを狙う。
+                                                美容系ウェブメディア、信頼できるインフルエンサーとのタイアップで情報提供。
+                                                <span class="highlight-text">「美肌効果」「肌負担の少なさ」を重視した記事広告、ウェビナー等。</span>
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                若年層をメインターゲットに、SNSでのキャンペーン、TVCM、雑誌広告を多用。
+                                                「お得さ」「安さ」を強調した訴求（例: <span class="highlight-text">「両ワキ+Vライン完了コース」CM</span>）。
+                                                インフルエンサーマーケティングも積極的に実施。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                「永久脱毛」を前面に、効果の高さと医療機関としての安心感を訴求。
+                                                Web広告、リスティング広告が中心。美容クリニック提携による紹介。
+                                                症例写真や医師監修のコンテンツ。
+                                                <span class="highlight-text">医療行為としての信頼性と効果の絶対性を強調。</span>
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <span class="highlight-text">価格訴求ではなく「痛みや肌への優しさ」「美肌効果」「効率性」といった、35歳以上層の悩みに寄り添った**価値訴求型プロモーション**を多角的に展開。専門性と信頼性を前面に押し出し、「安かろう悪かろう」ではない「確かな投資」であることを訴求。</span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- 戦略的ターゲット: 35歳未満層 -->
+                <div class="card mt-10">
+                    <button class="accordion-toggle w-full flex justify-between items-center text-left p-4 -m-4 bg-transparent hover:bg-stone-50 focus:outline-none rounded-lg" data-target-age="under35">
+                        <div class="flex items-center gap-4">
+                            <span class="text-3xl">🌟</span>
+                            <div>
+                                <h3 class="text-lg font-bold text-stone-800">戦略的ターゲット: 35歳未満層</h3>
+                                <p class="text-sm text-stone-600">トレンド感とコストパフォーマンスを重視します。</p>
+                            </div>
+                        </div>
+                        <p class="text-2xl font-bold text-gray-600">顧客層拡大の鍵</p>
+                        <svg class="accordion-icon w-6 h-6 text-stone-500 transition-transform transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div class="accordion-content mt-4 border-t border-stone-200 pt-4">
+                        <h4 class="text-xl font-bold text-stone-800 mb-4">35歳未満層への新規顧客獲得戦略</h4>
+                        
+                        <h5 class="text-lg font-bold text-stone-800 mt-6">35歳未満層の特性と訴求の方向性</h5>
+                        <div class="space-y-4 text-sm text-stone-600">
+                            <div>
+                                <p class="font-semibold text-stone-700">1. 経済的制約とコスト意識:</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>特性: 収入が比較的安定していない層が多く、初期費用や月額料金の安さを重視。キャンペーンや割引に敏感。</li>
+                                    <li>訴求: 「始めやすい価格」「学生割引」「月額制のメリット」など、**コストパフォーマンスの高さ**を強調します。</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-stone-700">2. 情報感度とSNSの活用:</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>特性: SNS（Instagram, TikTok, YouTube）で情報収集を行い、インフルエンサーの口コミやビフォーアフターを重視。</li>
+                                    <li>訴求: 「SNS映えする店内」「友達紹介キャンペーン」「インフルエンサーコラボ」など、**視覚的 appealing と共感性**を重視したプロモーション。</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-stone-700">3. 脱毛への意識とトレンド:</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>特性: 全身脱毛への意識が高いが、VIOや顔脱毛など特定部位への関心も強い。最新のトレンドや技術に関心がある。</li>
+                                    <li>訴求: 「全身脱毛がお得」「VIOや顔も痛くない」「最新のSHR脱毛」など、**トレンドと効果の両立**をアピールします。</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-stone-700">4. スピードと手軽さ:</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>特性: 忙しいライフスタイルの中で、施術時間の短さや予約の取りやすさを重視。</li>
+                                    <li>訴求: 「最短60分で全身脱毛」「スマホで簡単予約」「駅チカで通いやすい」など、**利便性と効率性**を強調します。</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- 35歳未満層向け 3C分析 -->
+                        <h5 class="text-lg font-bold text-stone-800 mt-6">3C分析 (35歳未満層向け)</h5>
+                        <div class="space-y-4 text-sm text-stone-600">
+                            <div>
+                                <p class="font-semibold text-stone-700">顧客 (Customer):</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>**ニーズ:** 安価で手軽に始めたい、全身脱毛（VIO・顔含む）、痛くない脱毛、SNS映え、友人との話題、短時間で終わる、予約の取りやすさ、最新の技術。</li>
+                                    <li>**POD (差別化点):** 痛みの少ないSHR脱毛と施術時間の短さ（「時短」）。美容成分配合ジェルによる美肌効果。学生割引の充実。</li>
+                                    <li>**POP (同等点):** 全身脱毛プランの提供、月額制、オンライン予約、駅チカ店舗。</li>
+                                    <li>**POF (不足点):** ミュゼのような圧倒的な低価格キャンペーン（100円など）の欠如。SNS上での認知度・話題性のさらなる向上。</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-stone-700">競合 (Competitor):</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>**エステ競合:** ミュゼプラチナム（価格訴求、知名度）、恋肌（高速施術、安さ）、キレイモ（全身脱毛専門、月額制）、ラココ（SHR系、価格）。</li>
+                                    <li>**医療脱毛競合:** 湘南美容クリニック、リゼクリニック（若年層にもリーチし、永久脱毛を低価格で訴求）。</li>
+                                    <li>**代替品:** 高機能家庭用脱毛器（初期投資のみ、自宅で手軽）。</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-stone-700">自社 (Company) - ストラッシュ:</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>**強み:** 痛みの少ないSHR脱毛、全身脱毛の短時間施術、顔・VIO込みの全身脱毛、美容成分配合ジェル。</li>
+                                    <li>**弱み:** 医療脱毛との「永久性」の認識差。一部競合の「超格安」キャンペーンとの価格競争力。若年層へのブランド認知度。</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- 35歳未満層向け SWOT分析 -->
+                        <h5 class="text-lg font-bold text-stone-800 mt-6">SWOT分析 (35歳未満層向け)</h5>
+                        <div class="space-y-4">
+                            <div class="border border-stone-200 rounded-lg p-4">
+                                <h4 class="font-semibold text-stone-700 mb-2">強み (Strengths)</h4>
+                                <div class="text-sm text-stone-600">
+                                    <ul class="list-disc pl-5 space-y-1 text-xs">
+                                        <li>痛みの少ないSHR脱毛で痛みに敏感な若年層にも安心。</li>
+                                        <li>全身脱毛が最短60分で完了し、忙しい学生や社会人にも効率的。</li>
+                                        <li>美肌効果のあるジェルで脱毛しながら美肌も実現。</li>
+                                        <li>顔・VIOを含む全身脱毛が基本プランに含まれる。</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="border border-stone-200 rounded-lg p-4">
+                                <h4 class="font-semibold text-stone-700 mb-2">弱み (Weaknesses)</h4>
+                                <div class="text-sm text-stone-600">
+                                    <ul class="list-disc pl-5 space-y-1 text-xs">
+                                        <li>医療脱毛の「永久性」という訴求に対してエステ脱毛の効果を誤解されやすい。</li>
+                                        <li>競合他社の極端な初回キャンペーン価格と比べると初期費用が高く感じられる場合がある。</li>
+                                        <li>若年層におけるブランド認知度や話題性が一部競合に劣る可能性。</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="border border-stone-200 rounded-lg p-4">
+                                <h4 class="font-semibold text-stone-700 mb-2">機会 (Opportunities)</h4>
+                                <div class="text-sm text-stone-600">
+                                    <ul class="list-disc pl-5 space-y-1 text-xs">
+                                        <li>SNS (TikTok, Instagram)での脱毛に関する情報収集が活発で、バイラルマーケティングの余地が大きい。</li>
+                                        <li>全身脱毛が若年層の定番美容になりつつあり、市場が拡大。</li>
+                                        <li>男性の脱毛意識も高まっており、メンズ脱毛市場への参入・拡大。</li>
+                                        <li>学割ニーズが高く、適切なプロモーションで囲い込みが可能。</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="border border-stone-200 rounded-lg p-4">
+                                <h4 class="font-semibold text-stone-700 mb-2">脅威 (Threats)</h4>
+                                <div class="text-sm text-stone-600">
+                                    <ul class="list-disc pl-5 space-y-1 text-xs">
+                                        <li>競合他社による激しい価格競争と過度なキャンペーン合戦。</li>
+                                        <li>高性能な家庭用脱毛器の普及による自宅ケアの代替。</li>
+                                        <li>医療脱毛クリニックが若年層向けに低価格プランを強化している。</li>
+                                        <li>SNSでの悪い口コミが広がりやすいリスク。</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <h4 class="text-lg font-bold text-stone-800 mt-6">SWOTクロス分析：戦略的示唆 (35歳未満層向け)</h4>
+                            <div class="info-box">
+                                <h5 class="font-bold text-teal-800">S × O (攻めの戦略)</h5>
+                                <p class="text-sm text-teal-700 mt-1">痛みの少ないSHR脱毛と短時間施術（強み）を、SNSでの「タイムパフォーマンス」重視の若年層（機会）に強く訴求。「痛くない、早い、可愛い」といった視覚的・共感性の高いコンテンツをInstagramやTikTokで発信し、**新規獲得数と話題性を向上**させます。</p>
+                            </div>
+                            <div class="info-box">
+                                <h5 class="font-bold text-teal-800">S × T (差別化戦略)</h5>
+                                <p class="text-sm text-teal-700 mt-1">痛みが少なく美肌効果のあるSHR脱毛（強み）を、医療脱毛の「痛み」や家庭用脱毛器の「効果の限界」（脅威）に対する明確な差別化点として強調。特に「エステサロンならではの快適性」と「プロによるきめ細やかな美肌ケア」で、**競合や代替品では得られない高付加価値体験**を訴求します。</p>
+                            </div>
+                            <div class="info-box">
+                                <h5 class="font-bold text-teal-800">W × O (改善戦略)</h5>
+                                <p class="text-sm text-teal-700 mt-1">「価格競争力」の弱みに対し、SNSで活発な若年層（機会）をターゲットに、**「月額4,400円〜」などの始めやすい価格**と「美肌ジェル」「最短60分」の価値を組み合わせ、コストパフォーマンスの高さを訴求。学生割引をさらに強化し、友人紹介キャンペーンで**自然な口コミ拡散**を促します。</p>
+                            </div>
+                            <div class="info-box">
+                                <h5 class="font-bold text-teal-800">W × T (回避/防御戦略)</h5>
+                                <p class="text-sm text-teal-700 mt-1">「永久脱毛ではない」という誤解（弱み）に対し、低価格を謳う医療脱毛クリニック（脅威）との比較で、ストラッシュのSHR脱毛が「自己処理が不要になるレベル」の効果を提供し、かつ「痛くない」ことのメリットを強調。短期的な価格競争には追従せず、**「総合的な肌の美しさ」と「快適な通いやすさ」**で顧客を惹きつけます。</p>
+                            </div>
+                        </div>
+
+                        <!-- 35歳未満層向け STP分析 -->
+                        <h5 class="text-lg font-bold text-stone-800 mt-6">STP分析 (35歳未満層向け)</h5>
+                        <div class="space-y-4 text-sm text-stone-600">
+                            <div>
+                                <p class="font-semibold text-stone-700">Segmentation (市場細分化):</p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs">
+                                    <li>**年齢層:** 18歳〜34歳の女性（学生、新社会人、若手社会人）。</li>
+                                    <li>**ニーズ:** 低価格、手軽に始められる、全身脱毛、痛くない、短期間で効果実感、SNSでの話題性、友人と同じサロン。</li>
+                                    <li>**行動:** SNSでの情報収集が主、友人の口コミ重視、トレンドに敏感、視覚的情報に影響されやすい。</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-stone-700">Targeting (ターゲット選定):</p>
+                                <p>ストラッシュは、**「コストを抑えつつ、痛みが少なく効率的に全身脱毛を完了させたい、SNSで情報を収集・発信するトレンドに敏感な18歳〜34歳の女性」**をターゲットに設定します。</p>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-stone-700">Positioning (ポジショニング):</p>
+                                <p>この層に対してストラッシュは、**「痛みを気にせず、賢く・早く全身ツルツル肌を手に入れられる、トレンド最先端の脱毛サロン」**としてポジショニングします。「価格以上の価値」と「快適な脱毛体験」を両立する点を強調し、「憧れの肌」を「手軽に」「快適に」実現できる場所として訴求します。</p>
+                            </div>
+                        </div>
+
+                        <!-- 35歳未満層向け 4P分析 - 競合比較 -->
+                        <h5 class="text-lg font-bold text-stone-800 mt-6">4P分析 (35歳未満層向け) - 競合比較</h5>
+                        <div class="space-y-4 text-sm text-stone-600">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm text-left text-stone-600 rounded-lg overflow-hidden border border-stone-200">
+                                    <thead class="text-xs text-stone-700 uppercase bg-stone-100">
+                                        <tr>
+                                            <th scope="col" class="px-3 py-2">項目</th>
+                                            <th scope="col" class="px-3 py-2">ストラッシュのアプローチ (ターゲット: 35歳未満層)</th>
+                                            <th scope="col" class="px-3 py-2">ミュゼプラチナム (エステ競合例)</th>
+                                            <th scope="col" class="px-3 py-2">キレイモ (エステ競合例)</th>
+                                            <th scope="col" class="px-3 py-2">恋肌 (エステ競合例)</th>
+                                            <th scope="col" class="px-3 py-2">ラココ (エステ競合例)</th>
+                                            <th scope="col" class="px-3 py-2">ストラッシュの差別化ポイント</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr class="bg-white border-b border-stone-200">
+                                            <th scope="row" class="px-3 py-2 font-medium text-stone-900 whitespace-nowrap">Product<br>(製品・サービス)</th>
+                                            <td class="px-3 py-2">
+                                                全身脱毛（顔・VIO含む）の<span class="highlight-text">痛みが少ないSHR脱毛</span>。
+                                                <span class="highlight-text">最短60分の施術時間</span>で「早い・痛くない」を強調。
+                                                美肌効果のある**美容成分21種配合ジェル**。
+                                                産毛や日焼け肌にも対応。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                S.S.C.脱毛で肌に優しく美肌効果。
+                                                <span class="highlight-text">部分脱毛が特に有名</span>で、両ワキ＋Vライン永久保証などのプランが人気。
+                                                全身脱毛も提供。<span class="highlight-text">施術時間は全身で約120分</span>。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                IPL脱毛（痛みややあり）。冷却ジェル不要。
+                                                <span class="highlight-text">顔・VIO込みの全身脱毛が基本。</span>
+                                                スリムアップ脱毛などユニークなサービス。<span class="highlight-text">施術時間約90分。</span>
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                IPL脱毛（痛みややあり）。連射式脱毛機で施術時間短縮。
+                                                <span class="highlight-text">2週間に1回通えるプランが強み。</span>
+                                                <span class="highlight-text">施術時間全身約60分。</span>
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                SHR脱毛（痛みが少ない）。ルミクス脱毛機。
+                                                <span class="highlight-text">施術時間最短30分（全身）。</span>
+                                                美肌潤い成分配合ジェル。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <span class="highlight-text">顔・VIO込みの全身SHR脱毛で、痛みを抑えつつ最短期間（60分）での脱毛完了を追求。美容成分配合ジェルによる美肌効果も付加し、若年層の多様なニーズをワンストップで満たす「痛みなし・早い・キレイ」を追求した総合的な脱毛体験。</span>
+                                            </td>
+                                        </tr>
+                                        <tr class="bg-white border-b border-stone-200">
+                                            <th scope="row" class="px-3 py-2 font-medium text-stone-900 whitespace-nowrap">Price<br>(価格)</th>
+                                            <td class="px-3 py-2">
+                                                初回限定のお得なキャンペーン（例: <span class="highlight-text">月額4,400円〜</span>）。
+                                                学生証提示で<span class="highlight-text">学割適用（10%オフなど）</span>あり。
+                                                全身脱毛<span class="highlight-text">6回コースで約120,000円〜150,000円</span>程度。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                「<span class="highlight-text">100円脱毛</span>」などの破格のキャンペーンで集客。
+                                                全身脱毛<span class="highlight-text">6回コースで約99,000円〜</span>（キャンペーン適用）。
+                                                回数券やフリーセレクトプランなど多様な料金形態。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                全身脱毛<span class="highlight-text">月額制（例: 月額4,900円〜）</span>が特徴。
+                                                <span class="highlight-text">総額300,000円以上</span>の高額プランも存在。
+                                                学割やのりかえ割あり。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                全身脱毛<span class="highlight-text">初回0円、月額1,430円〜</span>など、非常に安価なプランを提示。
+                                                <span class="highlight-text">6回コースで約100,000円〜</span>。
+                                                学割や乗り換え割など割引も豊富。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                月額<span class="highlight-text">3,300円〜</span>。
+                                                全身脱毛<span class="highlight-text">6回コース約118,000円〜</span>。
+                                                のりかえ割、ペア割など。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <span class="highlight-text">「始めやすい月額料金」と「全身脱毛の総額の透明性」を両立。SHR脱毛の快適性・美肌効果という付加価値を考慮すると、価格以上の価値を提供。学割も強化し、若年層の経済的負担を軽減しつつ、長期的な顧客関係を構築。</span>
+                                            </td>
+                                        </tr>
+                                        <tr class="bg-white border-b border-stone-200">
+                                            <th scope="row" class="px-3 py-2 font-medium text-stone-900 whitespace-nowrap">Place<br>(流通・店舗)</th>
+                                            <td class="px-3 py-2">
+                                                **駅チカ**の店舗立地で通いやすさをアピール。
+                                                <span class="highlight-text">オンライン予約システム</span>で24時間いつでも予約可能。
+                                                清潔感があり、<span class="highlight-text">カジュアルで入りやすい雰囲気の店舗</span>デザイン。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                全国に**多数の店舗**を展開、駅ビルや商業施設内が多い。
+                                                WEB・アプリ予約対応。店舗間の移動も自由。
+                                                <span class="highlight-text">全国どこでも通える利便性が強み。</span>
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                主要都市を中心に展開。
+                                                **全店駅チカ**を謳い、アクセスが良い。
+                                                清潔感のあるシンプルな内装。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                全国に店舗展開。
+                                                <span class="highlight-text">予約が比較的取りやすい</span>とされている。
+                                                オンライン予約中心。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                全国に店舗展開。
+                                                駅チカ店舗が多い。
+                                                完全予約制。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <span class="highlight-text">駅チカの店舗で通いやすさを確保しつつ、若年層が慣れ親しんだオンライン予約システムを強化。施術時間の短縮と合わせて「学校帰りや仕事帰りにサッと寄れる」手軽さを強調し、忙しい若年層のライフスタイルにフィット。</span>
+                                            </td>
+                                        </tr>
+                                        <tr class="bg-white">
+                                            <th scope="row" class="px-3 py-2 font-medium text-stone-900 whitespace-nowrap">Promotion<br>(プロモーション)</th>
+                                            <td class="px-3 py-2">
+                                                **Instagram, TikTok**などSNSでの**ビジュアル重視コンテンツ**（施術動画、サロンの雰囲気、お客様の声）。
+                                                若年層に人気の**インフルエンサーとのコラボ**（クーポン配布、体験レポート）。
+                                                YouTubeで「痛くない脱毛」のメリットを分かりやすく解説。
+                                                「初めての脱毛」向けの**不安解消コンテンツ**。
+                                                <span class="highlight-text">SNSのUGC（User Generated Content）促進。</span>
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                TVCM、SNS広告、雑誌広告など多角的なプロモーション。
+                                                「100円脱毛」などの**強烈な価格訴求**で認知度と集客力。
+                                                若年層向け雑誌やWebメディアとのタイアップ。
+                                                <span class="highlight-text">有名芸能人起用。</span>
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                インフルエンサー、モデルを起用したSNSプロモーション。
+                                                **「月額〇円」を強調**したWeb広告、アプリ広告。
+                                                ファッション誌への掲載。
+                                                <span class="highlight-text">女性の憧れを醸成するビジュアル戦略。</span>
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                SNS広告、Web広告が中心。
+                                                「安さ」「短期間で完了」を強調。
+                                                <span class="highlight-text">人気YouTuberやインフルエンサーとのコラボ</span>で認知度向上。
+                                                <span class="highlight-text">友達紹介キャンペーンの強化。</span>
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                Web広告、SNS広告中心。
+                                                芸能人・モデルを起用したプロモーション。
+                                                <span class="highlight-text">SHR脱毛の優位性を強調。</span>
+                                                価格訴求も行う。
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <span class="highlight-text">若年層の情報収集源であるSNSを徹底活用し、視覚的な訴求力と共感性を重視。価格だけでなく、SHR脱毛の「痛みなし」「早い」「美肌」といった具体的なベネフィットを、インフルエンサーを通じてリアルに伝えることで、競合との差別化を図る。UGC促進により「若年層に選ばれるサロン」としての地位を確立。</span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div>
+                    <h2 class="text-2xl font-bold mb-1 text-stone-800">戦略の3本柱</h2>
+                    <p class="text-stone-600 text-sm">目標達成は、以下の3つの戦略を同時並行で推進することで実現します。これらは相互に連携し、Day150件達成を加速させます。</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="card">
+                        <div class="flex items-center gap-4">
+                            <span class="text-3xl">📢</span>
+                            <div>
+                                <h3 class="text-lg font-bold text-stone-800">広告最適化</h3>
+                                <p class="text-sm text-stone-600">高品質なリードを効率的に獲得し、広告投資のROIを最大化します。</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="flex items-center gap-4">
+                            <span class="text-3xl">🤝</span>
+                            <div>
+                                <h3 class="text-lg font-bold text-stone-800">転換率向上</h3>
+                                <p class="text-sm text-stone-600">カウンセリングから契約へのプロセスを強化し、来院顧客の成約数を増やします。</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="flex items-center gap-4">
+                            <span class="text-3xl">⚙️</span>
+                            <div>
+                                <h3 class="text-lg font-bold text-stone-800">オペレーション強化</h3>
+                                <p class="text-sm text-stone-600">Day150件の顧客を高品質で対応できる、強固な店舗運営体制を構築します。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="monthly-plan" class="view-section hidden space-y-10">
+                 <div class="gradient-bg-header p-6 rounded-xl">
+                    <h2 class="text-2xl sm:text-3xl font-extrabold mb-2 text-white">月次アクションプラン</h2>
+                    <p class="text-stone-100 text-sm">6ヶ月間の詳細なアクションプランです。各月のタブをクリックして、その月の目標と具体的なアクション、そしてそれがDay150件達成にどう貢献するかを確認できます。</p>
+                </div>
+                <div class="mt-6">
+                    <div class="sm:hidden">
+                        <label for="tabs" class="sr-only">月を選択</label>
+                        <select id="tabs" name="tabs" class="block w-full rounded-md border-stone-300 focus:border-teal-500 focus:ring-teal-500">
+                        </select>
+                    </div>
+                    <div class="hidden sm:block">
+                        <div class="border-b border-stone-200">
+                            <nav id="month-tabs" class="-mb-px flex space-x-6" aria-label="Tabs">
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+                <div id="plan-content" class="mt-6 space-y-6">
+                </div>
+            </section>
+            
+            <section id="market-analysis" class="view-section hidden space-y-10">
+                <div class="gradient-bg-header p-6 rounded-xl">
+                    <h2 class="text-2xl sm:text-3xl font-extrabold mb-2 text-white">市場・競合分析</h2>
+                    <p class="text-stone-100 text-sm">ストラッシュを取り巻く市場環境と、競合・代替品の価格ポジショニングを分析します。これにより、戦略の妥当性と競争優位性を再確認します。</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="card">
+                        <h3 class="text-xl font-bold text-stone-800">競合価格比較 (全身脱毛 5-6回)</h3>
+                        <p class="text-sm text-stone-500 mb-4">ストラッシュと主要な競合の価格帯を比較します。ボタンで「エステ脱毛」と「医療脱毛」を切り替えられます。</p>
+                        <div class="flex gap-2 mb-4">
+                            <button id="show-salon" class="chart-filter-btn btn-primary">エステ脱毛</button>
+                            <button id="show-medical" class="chart-filter-btn btn-secondary">医療脱毛</button>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="competitorChart"></canvas>
+                        </div>
+                        <div class="info-box mt-6">
+                            <h4 class="font-bold text-teal-800">競争圧力の洞察 (5フォース分析: 既存企業間の競争の激しさ)</h4>
+                            <p class="text-sm text-teal-700 mt-1">グラフが示す通り、エステ脱毛市場は**ラココ（¥118,800）**や**ミュゼ（約¥99,000）**がストラッシュ（¥125,400）と同等かそれ以下の価格帯で競争しており、価格競争が激しいことが分かります。Day150件達成には、単なる価格訴求だけでなく、ストラッシュのSHR脱毛による「痛みの少なさ」や「エステとしての快適さ」といった**付加価値の明確な訴求**が不可欠です。</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3 class="text-xl font-bold text-stone-800">代替品の脅威</h3>
+                        <p class="text-sm text-stone-500 mb-4">サロンに通わない選択肢として、家庭用脱毛器と医療脱毛クリニックが大きな代替品となります。その価格帯は非常に広範です。</p>
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center p-4 bg-stone-100 rounded-lg">
+                                <div>
+                                    <p class="font-semibold text-stone-700">医療脱毛クリニック（永久脱毛）</p>
+                                    <p class="text-sm text-stone-600">例: エミナル、レジーナ等</p>
+                                </div>
+                                <p class="text-lg font-bold text-orange-600">¥49,500 ~ ¥130,000</p>
+                            </div>
+                            <div class="flex justify-between items-center p-4 bg-stone-100 rounded-lg">
+                                <div>
+                                    <p class="font-semibold text-stone-700">家庭用脱毛器（自宅で手軽）</p>
+                                    <p class="text-lg font-bold text-orange-600">¥3,500 ~ ¥80,000</p>
+                                </div>
+                            </div>
+                        </div>
+                         <div class="info-box bg-red-50 border-red-200">
+                            <h4 class="font-bold text-red-800">戦略的示唆 (5フォース分析: 代替品の脅威 & SWOT分析: Threats)</h4>
+                            <p class="text-sm text-red-700 mt-1">数千円から始められる家庭用脱毛器や、**5万円台から永久脱毛を謳う医療脱毛クリニック**（例: エミナル¥49,500 ([Source 9.1](https://seishinbiyou-clinic.com/column/eminal-clinic-ryoukin/)), レジーナ¥52,800 ([Source 11.1](https://jennyc.jp/4666/)))が存在する市場では、**単なる価格競争は非常に困難**です。ストラッシュは「痛みの少なさ」「肌への優しさ」「エステとしての付加価値」を明確に伝え、**価格以上の価値**を顧客に提供する必要があります。これは**STP分析 (Positioning)** において非常に重要です。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5フォース分析グラフ -->
+                <div class="card mt-10">
+                    <h3 class="text-xl font-bold text-stone-800 mb-4">5フォース分析：業界の競争要因強度</h3>
+                    <p class="text-sm text-stone-600 mb-4">各競争要因の強度を視覚的に示します。強度が高いほど、業界の収益性が圧迫される傾向にあります。</p>
+                    <div class="chart-container">
+                        <canvas id="fiveForcesChart"></canvas>
+                    </div>
+                    <div class="info-box mt-6">
+                        <h4 class="font-bold text-teal-800">分析の洞察 (5フォース分析)</h4>
+                        <p class="text-sm text-teal-700 mt-1">脱毛サロン業界は、「既存企業間の競争」「代替品の脅威」「買い手の交渉力」が非常に高く、収益性が圧迫されやすい構造にあります。新規参入の脅威も中程度であり、常に競争環境は厳しいと言えます。ストラッシュは、これらの高い圧力を乗り越えるために、強力な差別化戦略と効率的なオペレーションが不可欠です。</p>
+                    </div>
+                    <!-- 5 FORCES DETAILS - Now always visible -->
+                    <div class="mt-6 space-y-4">
+                        <h4 class="text-lg font-bold text-stone-800">各要因の詳細とストラッシュへの影響</h4>
+                        <!-- Threat of New Entrants -->
+                        <div class="border border-stone-200 rounded-lg p-4">
+                            <h5 class="font-semibold text-stone-700 mb-2">新規参入の脅威 (中程度)</h5>
+                            <div class="text-sm text-stone-600 space-y-2">
+                                <p>エステ脱毛サロンは、医療脱毛クリニックと比較して**開業資金や専門資格のハードルが比較的低い**傾向にあります。IPL/SHR脱毛機器の普及により、施術技術自体も汎用化しやすくなっています。特に小規模サロンやフリーランスによる個人開業も増加しており、市場への新規参入は容易です。これにより、地域単位での競争が激化しやすくなります。</p>
+                                <p><span class="highlight-text">ストラッシュへの影響:</span> 既存の知名度や店舗網を持つ一方で、小規模で特化したサービスを提供する新規参入者（例：セルフ脱毛サロンなど）との差別化を継続する必要があります。高い参入障壁ではないため、常にサービスの質と顧客体験でリードを保つことが求められます。</p>
+                            </div>
+                        </div>
+                        <!-- Bargaining Power of Buyers -->
+                        <div class="border border-stone-200 rounded-lg p-4">
+                            <h5 class="font-semibold text-stone-700 mb-2">買い手の交渉力 (高)</h5>
+                            <div class="text-sm text-stone-600 space-y-2">
+                                <p>脱毛サロン業界は供給者が多く、顧客は多数の選択肢から自由に選ぶことができます。インターネット上の口コミサイト、比較サイト、SNSなどを通じて容易に情報収集ができるため、価格やサービス内容の比較検討が容易です。</p>
+                                <p><span class="highlight-text">ストラッシュへの影響:</span> 顧客はより良い条件を求めて交渉する傾向が強いため、価格競争に巻き込まれやすくなります。ストラッシュは、価格以外の「質の高いサービス」「快適な顧客体験」「SHR脱毛の独自価値」で顧客を引きつけ、維持する必要があります。</p>
+                            </div>
+                        </div>
+                        <!-- Bargaining Power of Suppliers -->
+                        <div class="border border-stone-200 rounded-lg p-4">
+                            <h5 class="font-semibold text-stone-700 mb-2">供給者の交渉力 (低)</h5>
+                            <div class="text-sm text-stone-600 space-y-2">
+                                <p>脱毛機器メーカーや美容用品サプライヤーは多数存在し、特定のサプライヤーに依存するリスクは比較的低いと言えます。多様な機器や消耗品の中から、条件の合うサプライヤーを選ぶことが可能です。</p>
+                                <p><span class="highlight-text">ストラッシュへの影響:</span> 供給者の力が弱いため、仕入れコストを比較的安定させることができます。これにより、原価を抑えつつ高品質なサービスを提供できる余地が生まれます。</p>
+                            </div>
+                        </div>
+                        <!-- Threat of Substitute Products or Services -->
+                        <div class="border border-stone-200 rounded-lg p-4">
+                            <h5 class="font-semibold text-stone-700 mb-2">代替品の脅威 (高)</h5>
+                            <div class="text-sm text-stone-600 space-y-2">
+                                <p>脱毛を望む消費者にとっての代替品は多岐にわたります。最も強力な代替品は**「医療脱毛クリニック」**であり、より高い脱毛効果（永久脱毛）を謳い、近年では価格もエステ脱毛に近づいています。次に、手軽で初期費用が安い**「家庭用脱毛器」**が挙げられます。その他、カミソリや除毛クリームなどの**自己処理**も常に代替手段となります。</p>
+                                <p><span class="highlight-text">ストラッシュへの影響:</span> 代替品の脅威が高いため、ストラッシュはエステ脱毛ならではの「痛みや肌への優しさ」「美肌効果」「リラックスできる空間」といった価値を強調し、医療脱毛や家庭用脱毛器では得られない独自の顧客体験を提供することで差別化を図る必要があります。特に「永久脱毛ではない」という点での誤解を避け、ストラッシュの提供する「自己処理が不要になるレベル」の効果と快適さを正確に伝えることが重要いです。</p>
+                            </div>
+                        </div>
+                        <!-- Rivalry Among Existing Competitors -->
+                        <div class="border border-stone-200 rounded-lg p-4">
+                            <h5 class="font-semibold text-stone-700 mb-2">既存企業間の競争の激しさ (高)</h5>
+                            <div class="text-sm text-stone-600 space-y-2">
+                                <p>脱毛サロン業界は参入企業が多く、市場の成熟に伴い競争は激化しています。特に全身脱毛サービスにおいては、価格競争、広告宣伝競争が非常に激しく、各社が多様なキャンペーンや割引を提供しています。</p>
+                                <p><span class="highlight-text">ストラッシュへの影響:</span> 既存の競合との差別化が不可欠です。SHR脱毛技術、顧客体験、ブランディングなど、価格以外の競争軸を強化することが、Day150件達成のための顧客獲得と維持に繋がります。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Accordion for Strategic Target - 35歳以上層
+            const over35AccordionToggle = document.querySelector('.accordion-toggle[data-target-age="over35"]');
+            const over35AccordionContent = over35AccordionToggle.nextElementSibling;
+            const over35AccordionIcon = over35AccordionToggle.querySelector('.accordion-icon');
+
+            over35AccordionToggle.addEventListener('click', () => {
+                const isExpanded = over35AccordionContent.classList.contains('is-expanded');
+                if (isExpanded) {
+                    over35AccordionContent.classList.remove('is-expanded');
+                    over35AccordionContent.style.maxHeight = 0;
+                    over35AccordionIcon.style.transform = 'rotate(0deg)';
+                } else {
+                    over35AccordionContent.classList.add('is-expanded');
+                    over35AccordionContent.style.maxHeight = over35AccordionContent.scrollHeight + 'px';
+                    over35AccordionIcon.style.transform = 'rotate(180deg)';
+                }
+            });
+            // Initial state for accordion (collapsed by default)
+            over35AccordionContent.style.maxHeight = 0;
+
+            // Accordion for Strategic Target - 35歳未満層
+            const under35AccordionToggle = document.querySelector('.accordion-toggle[data-target-age="under35"]');
+            const under35AccordionContent = under35AccordionToggle.nextElementSibling;
+            const under35AccordionIcon = under35AccordionToggle.querySelector('.accordion-icon');
+
+            under35AccordionToggle.addEventListener('click', () => {
+                const isExpanded = under35AccordionContent.classList.contains('is-expanded');
+                if (isExpanded) {
+                    under35AccordionContent.classList.remove('is-expanded');
+                    under35AccordionContent.style.maxHeight = 0;
+                    under35AccordionIcon.style.transform = 'rotate(0deg)';
+                } else {
+                    under35AccordionContent.classList.add('is-expanded');
+                    under35AccordionContent.style.maxHeight = under35AccordionContent.scrollHeight + 'px';
+                    under35AccordionIcon.style.transform = 'rotate(180deg)';
+                }
+            });
+            // Initial state for accordion (collapsed by default)
+            under35AccordionContent.style.maxHeight = 0;
+
+            // Navigation
+            const navButtons = document.querySelectorAll('.nav-btn');
+            const viewSections = document.querySelectorAll('.view-section');
+
+            navButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const view = button.dataset.view;
+
+                    navButtons.forEach(btn => btn.classList.replace('nav-active', 'nav-inactive'));
+                    button.classList.replace('nav-inactive', 'nav-active');
+
+                    viewSections.forEach(section => {
+                        if (section.id === view) {
+                            section.classList.remove('hidden');
+                        } else {
+                            section.classList.add('hidden');
+                        }
+                    });
+                });
+            });
+
+            // Chart data
+            const acquisitionData = {
+                labels: ['現在 (Day50件)', '1ヶ月後', '2ヶ月後', '3ヶ月後', '4ヶ月後', '5ヶ月後', '6ヶ月後 (Day150件)'],
+                datasets: [
+                    {
+                        label: '目標顧客獲得数 (件/日)',
+                        data: [50, 65, 80, 100, 120, 140, 150],
+                        borderColor: '#0d9488', // Teal-600
+                        backgroundColor: 'rgba(13, 148, 136, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }
+                ]
+            };
+
+            const competitorData = {
+                salon: {
+                    labels: ['ストラッシュ', 'ミュゼプラチナム', 'ラココ', '脱毛ラボ (閉業)', '恋肌'],
+                    datasets: [{
+                        label: '全身脱毛 5-6回 (税抜)',
+                        data: [125400, 99000, 118800, 109780, 125000],
+                        backgroundColor: [
+                            'rgba(13, 148, 136, 0.7)', // Teal
+                            'rgba(249, 115, 22, 0.7)', // Orange
+                            'rgba(59, 130, 246, 0.7)', // Blue
+                            'rgba(168, 85, 247, 0.7)', // Purple
+                            'rgba(234, 179, 8, 0.7)' // Yellow
+                        ],
+                        borderColor: [
+                            'rgba(13, 148, 136, 1)',
+                            'rgba(249, 115, 22, 1)',
+                            'rgba(59, 130, 246, 1)',
+                            'rgba(168, 85, 247, 1)',
+                            'rgba(234, 179, 8, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                medical: {
+                    labels: ['ストラッシュ (参考)', 'エミナルクリニック', 'レジーナクリニック', 'アリシアクリニック', '湘南美容クリニック'],
+                    datasets: [{
+                        label: '全身脱毛 5-6回 (税抜)',
+                        data: [125400, 49500, 52800, 138000, 100000], // ストラッシュはエステ脱毛だが比較のため含める
+                        backgroundColor: [
+                            'rgba(13, 148, 136, 0.7)', // Teal
+                            'rgba(220, 38, 38, 0.7)', // Red
+                            'rgba(234, 88, 12, 0.7)', // Orange-red
+                            'rgba(124, 58, 237, 0.7)', // Violet
+                            'rgba(6, 182, 212, 0.7)' // Cyan
+                        ],
+                        borderColor: [
+                            'rgba(13, 148, 136, 1)',
+                            'rgba(220, 38, 38, 1)',
+                            'rgba(234, 88, 12, 1)',
+                            'rgba(124, 58, 237, 1)',
+                            'rgba(6, 182, 212, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                }
+            };
+
+            const fiveForcesData = {
+                labels: ['新規参入の脅威', '買い手の交渉力', '供給者の交渉力', '代替品の脅威', '既存企業間の競争'],
+                datasets: [{
+                    label: '強度 (低:1 - 高:5)',
+                    data: [3, 4, 2, 5, 5], // Example data: Low, Medium, High, Very High, Extremely High
+                    backgroundColor: 'rgba(13, 148, 136, 0.6)',
+                    borderColor: '#0d9488',
+                    borderWidth: 1
+                }]
+            };
+
+            // Acquisition Chart
+            const acquisitionCtx = document.getElementById('acquisitionChart').getContext('2d');
+            const acquisitionChart = new Chart(acquisitionCtx, {
+                type: 'line',
+                data: acquisitionData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                        },
+                            // Tooltip for acquisition chart showing data with Japanese "件/日"
+                            tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.raw + '件/日';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '顧客獲得数 (件/日)'
+                            },
+                            suggestedMax: 160
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '期間'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Competitor Chart
+            const competitorCtx = document.getElementById('competitorChart').getContext('2d');
+            const competitorChart = new Chart(competitorCtx, {
+                type: 'bar',
+                data: competitorData.salon, // Default to salon data
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false,
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ¥' + context.raw.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '価格 (円)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return '¥' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('show-salon').addEventListener('click', () => {
+                competitorChart.data = competitorData.salon;
+                competitorChart.update();
+                document.getElementById('show-salon').classList.replace('btn-secondary', 'btn-primary');
+                document.getElementById('show-medical').classList.replace('btn-primary', 'btn-secondary');
+            });
+
+            document.getElementById('show-medical').addEventListener('click', () => {
+                competitorChart.data = competitorData.medical;
+                competitorChart.update();
+                document.getElementById('show-medical').classList.replace('btn-secondary', 'btn-primary');
+                document.getElementById('show-salon').classList.replace('btn-primary', 'btn-secondary');
+            });
+
+            // Five Forces Chart
+            const fiveForcesCtx = document.getElementById('fiveForcesChart').getContext('2d');
+            const fiveForcesChart = new Chart(fiveForcesCtx, {
+                type: 'bar',
+                data: fiveForcesData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false,
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw;
+                                    let strength = '';
+                                    if (value === 1) strength = ' (低)';
+                                    else if (value === 2) strength = ' (やや低)';
+                                    else if (value === 3) strength = ' (中程度)';
+                                    else if (value === 4) strength = ' (高)';
+                                    else if (value === 5) strength = ' (非常に高)';
+                                    return context.label + ': ' + value + strength;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 5,
+                            ticks: {
+                                stepSize: 1,
+                                callback: function(value) {
+                                    if (value === 1) return '低';
+                                    if (value === 2) return 'やや低';
+                                    if (value === 3) return '中程度';
+                                    if (value === 4) return '高';
+                                    if (value === 5) return '非常に高';
+                                    return '';
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: '競争要因の強度'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Helper function to extract numerical value from current KPI string
+            function extractCurrentValue(value) {
+                if (value.endsWith('件')) {
+                    return value.replace('件', '');
+                }
+                if (value.endsWith('%')) {
+                    return value.replace('%', '');
+                }
+                // For currency values like "約¥20,000", keep as is.
+                return value;
+            }
+
+            // Monthly Plan Data
+            const monthlyPlans = [
+                {
+                    month: "現在 (Day50件)",
+                    target: "現状把握と基礎固め",
+                    kpis: [
+                        { name: "日次顧客獲得数", current: "50件", target: "50件", unit: "件" },
+                        { name: "CPA", current: "約¥20,000", target: "約¥20,000", unit: "円" },
+                        { name: "カウンセリング成約率", current: "30%", target: "30%", unit: "%" },
+                    ],
+                    actions: [
+                        "現行広告の効果測定と課題特定。",
+                        "カウンセリングプロセスの現状分析（トークスクリプト、顧客対応）。",
+                        "スタッフの稼働状況と予約システムの問題点洗い出し。",
+                    ],
+                    contribution: "Day150件達成に向けた現状のボトルネックを特定し、戦略策定の基礎とします。"
+                },
+                {
+                    month: "1ヶ月後 (Day65件)",
+                    target: "広告・カウンセリング改善の初期フェーズ",
+                    kpis: [
+                        { name: "日次顧客獲得数", current: "50件", target: "65件", unit: "件" },
+                        { name: "CPA", current: "約¥20,000", target: "約¥18,000", unit: "円" },
+                        { name: "カウンセリング成約率", current: "30%", target: "33%", unit: "%" },
+                    ],
+                    actions: [
+                        "広告最適化: 35歳以上層向けLPのA/Bテスト開始。",
+                        "転換率向上: カウンセリングトークスクリプトの一部改訂（高額プランへの誘導強化）。",
+                        "オペレーション強化: 予約システム改善タスクフォース発足、短期的な予約枠調整。",
+                    ],
+                    contribution: "ターゲット層への訴求力を高めつつ、初期のCPA改善と成約率向上に着手します。"
+                },
+                {
+                    month: "2ヶ月後 (Day80件)",
+                    target: "広告ターゲット深掘りとカウンセリングの質向上",
+                    kpis: [
+                        { name: "日次顧客獲得数", current: "65件", target: "80件", unit: "件" },
+                        { name: "CPA", current: "約¥18,000", target: "約¥16,000", unit: "円" },
+                        { name: "カウンセリング成約率", current: "33%", target: "36%", unit: "%" },
+                    ],
+                    actions: [
+                        "広告最適化: 35歳以上層向けクリエイティブ（画像・動画）の追加投入と効果検証。",
+                        "転換率向上: カウンセリングスタッフ向け高額プラン説明ロールプレイング研修。",
+                        "オペレーション強化: 新規スタッフ採用計画策定、研修プログラム準備。",
+                    ],
+                    contribution: "より質の高いリード獲得と、カウンセリングによる効果的な高額プランへの転換を促進します。"
+                },
+                {
+                    month: "3ヶ月後 (Day100件)",
+                    target: "本格的な広告チャネル拡大とスタッフ増員開始",
+                    kpis: [
+                        { name: "日次顧客獲得数", current: "80件", target: "100件", unit: "件" },
+                        { name: "CPA", current: "約¥16,000", target: "約¥15,000", unit: "円" },
+                        { name: "カウンセリング成約率", current: "36%", target: "38%", unit: "%" },
+                    ],
+                    actions: [
+                        "広告最適化: YouTube広告の導入と運用開始、インフルエンサーマーケティングの検討。",
+                        "転換率向上: お客様の声（特に35歳以上層）を活用したカウンセリング事例集作成。",
+                        "オペレーション強化: 新規スタッフの採用活動開始（目標人員の30%採用）。",
+                    ],
+                    contribution: "広告チャネルを多角化し、獲得数をさらに伸ばしつつ、受け入れ体制の強化に着手します。"
+                },
+                {
+                    month: "4ヶ月後 (Day120件)",
+                    target: "広告効果の最大化とオペレーションの適応",
+                    kpis: [
+                        { name: "日次顧客獲得数", current: "100件", target: "120件", unit: "件" },
+                        { name: "CPA", current: "約¥15,000", target: "約¥12,000", unit: "円" },
+                        { name: "カウンセリング成約率", current: "38%", target: "39%", unit: "%" },
+                    ],
+                    actions: [
+                        "広告最適化: CPA目標達成に向けた広告予算の再配分と精密ターゲティング。",
+                        "転換率向上: クロージングに特化したカウンセリング研修、モチベーション維持施策。",
+                        "オペレーション強化: 新規スタッフのオンボーディングと既存スタッフのサポート体制構築（目標人員の60%採用）。",
+                    ],
+                    contribution: "CPAのさらなる改善と、増え続ける顧客数に対応できる体制を構築します。"
+                },
+                {
+                    month: "5ヶ月後 (Day140件)",
+                    target: "最終目標に向けた総仕上げ",
+                    kpis: [
+                        { name: "日次顧客獲得数", current: "120件", target: "140件", unit: "件" },
+                        { name: "CPA", current: "約¥12,000", target: "約¥10,000", unit: "円" },
+                        { name: "カウンセリング成約率", current: "39%", target: "40%", unit: "%" },
+                    ],
+                    actions: [
+                        "広告最適化: 新規クリエイティブの最終調整、効果の低い広告の停止。",
+                        "転換率向上: カウンセリング成約率40%達成のための最終調整、個別フィードバック。",
+                        "オペレーション強化: 新規スタッフの完全戦力化、既存スタッフとの連携強化（目標人員の90%採用）。",
+                    ],
+                    contribution: "全ての施策を連動させ、Day150件達成のためのラストスパートをかけます。"
+                },
+                {
+                    month: "6ヶ月後 (Day150件達成)",
+                    target: "目標達成と安定化",
+                    kpis: [
+                        { name: "日次顧客獲得数", current: "140件", target: "150件", unit: "件" },
+                        { name: "CPA", current: "約¥10,000", target: "約¥8,933", unit: "円" },
+                        { name: "カウンセリング成約率", current: "40%", target: "40%", unit: "%" },
+                    ],
+                    actions: [
+                        "広告最適化: 継続的な効果測定と改善、新たな戦略的ターゲットの検討開始。",
+                        "転換率向上: カウンセリング品質の維持・向上、顧客満足度調査。",
+                        "オペレーション強化: 全スタッフの安定稼働、予約システムの継続的な最適化。",
+                    ],
+                    contribution: "Day150件の顧客獲得を安定的に実現し、次の成長戦略を策定します。"
+                }
+            ];
+
+            const monthTabsContainer = document.getElementById('month-tabs');
+            const tabsSelect = document.getElementById('tabs');
+            const planContent = document.getElementById('plan-content');
+
+            function renderMonthlyPlan(plan) {
+                planContent.innerHTML = `
+                    <div class="card">
+                        <h3 class="text-xl font-bold text-stone-800 mb-2">目標: ${plan.target}</h3>
+                        <p class="text-sm text-stone-500 mb-4">${plan.contribution}</p>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            ${plan.kpis.map(kpi => `
+                                <div class="p-4 bg-stone-50 rounded-lg border border-stone-200">
+                                    <p class="text-sm font-semibold text-stone-600">${kpi.name}</p>
+                                    <p class="text-2xl font-bold text-teal-600 mt-1">${kpi.target}<span class="text-sm text-stone-500 ml-2">(${extractCurrentValue(kpi.current)}より)</span></p>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <h4 class="text-lg font-bold text-stone-800 mb-3">具体的なアクション</h4>
+                        <ul class="list-disc pl-5 space-y-2 text-stone-700 text-sm">
+                            ${plan.actions.map(action => `<li>${action}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            // Populate tabs and select for monthly plan
+            monthlyPlans.forEach((plan, index) => {
+                // Desktop tabs
+                const button = document.createElement('button');
+                button.dataset.monthIndex = index;
+                button.classList.add('month-tab-btn', 'py-3', 'px-4', 'text-sm', 'font-semibold', 'hover:text-teal-600');
+                if (index === 0) {
+                    button.classList.add('tab-active');
+                } else {
+                    button.classList.add('tab-inactive');
+                }
+                button.textContent = plan.month;
+                monthTabsContainer.appendChild(button);
+
+                // Mobile select options
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = plan.month;
+                tabsSelect.appendChild(option);
+            });
+
+            // Add event listeners for desktop tabs
+            monthTabsContainer.querySelectorAll('.month-tab-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    monthTabsContainer.querySelectorAll('.month-tab-btn').forEach(btn => {
+                        btn.classList.replace('tab-active', 'tab-inactive');
+                    });
+                    button.classList.replace('tab-inactive', 'tab-active');
+                    const index = parseInt(button.dataset.monthIndex);
+                    renderMonthlyPlan(monthlyPlans[index]);
+                    tabsSelect.value = index; // Sync mobile select
+                });
+            });
+
+            // Add event listener for mobile select
+            tabsSelect.addEventListener('change', (event) => {
+                const index = parseInt(event.target.value);
+                renderMonthlyPlan(monthlyPlans[index]);
+                // Sync desktop tabs (optional, as typically one or the other is visible)
+                monthTabsContainer.querySelectorAll('.month-tab-btn').forEach(btn => {
+                    if (parseInt(btn.dataset.monthIndex) === index) {
+                        btn.classList.replace('tab-inactive', 'tab-active');
+                    } else {
+                        btn.classList.replace('tab-active', 'tab-inactive');
+                    }
+                });
+            });
+
+            // Render initial monthly plan
+            renderMonthlyPlan(monthlyPlans[0]);
+        });
+    </script>
+</body>
+</html>
